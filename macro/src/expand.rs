@@ -97,6 +97,9 @@ fn expand(ffi: Module, doc: Doc, attrs: OtherAttrs, apis: &[Api], types: &Types)
             ImplKey::WeakPtr(ident) => {
                 expanded.extend(expand_weak_ptr(ident, types, explicit_impl));
             }
+            ImplKey::CxxFuture(ident) => {
+                expanded.extend(expand_cxx_future(ident, types, explicit_impl));
+            }
             ImplKey::CxxVector(ident) => {
                 expanded.extend(expand_cxx_vector(ident, explicit_impl, types));
             }
@@ -1396,6 +1399,53 @@ fn expand_weak_ptr(ident: &Ident, types: &Types, explicit_impl: Option<&Impl>) -
                     fn __upgrade(weak: *const ::std::ffi::c_void, shared: *mut ::std::ffi::c_void);
                 }
                 __upgrade(weak, shared);
+            }
+            unsafe fn __drop(this: *mut ::std::ffi::c_void) {
+                extern "C" {
+                    #[link_name = #link_drop]
+                    fn __drop(this: *mut ::std::ffi::c_void);
+                }
+                __drop(this);
+            }
+        }
+    }
+}
+
+fn expand_cxx_future(inner: &Ident, types: &Types, explicit_impl: Option<&Impl>) -> TokenStream {
+    let name = inner.to_string();
+    let resolve = types.resolve(inner);
+    let prefix = format!("cxxbridge1$cxx$Future${}$", resolve.name.to_symbol());
+    let link_ready = format!("{}ready", prefix);
+    let link_move_result = format!("{}move_result", prefix);
+    let link_drop = format!("{}drop", prefix);
+
+    let (impl_generics, ty_generics) = if let Some(imp) = explicit_impl {
+        (&imp.impl_generics, &imp.ty_generics)
+    } else {
+        (resolve.generics, resolve.generics)
+    };
+
+    let begin_span =
+        explicit_impl.map_or_else(Span::call_site, |explicit| explicit.impl_token.span);
+    let end_span = explicit_impl.map_or_else(Span::call_site, |explicit| explicit.brace_token.span);
+    let unsafe_token = format_ident!("unsafe", span = begin_span);
+
+    quote_spanned! {end_span=>
+        #unsafe_token impl #impl_generics ::cxx::private::FutureResult for #inner #ty_generics {
+            const __NAME: &'static dyn ::std::fmt::Display = &#name;
+            fn __future_ready(this: *const ::std::ffi::c_void) -> bool {
+                extern "C" {
+                    #[link_name = #link_ready]
+                    fn __future_ready(_: *const ::std::ffi::c_void) -> bool;
+                }
+                unsafe { __future_ready(this) }
+            }
+            unsafe fn __move_result_unchecked(this: *mut ::std::ffi::c_void) -> *mut ::std::ffi::c_void {
+                extern "C" {
+                    #[link_name = #link_move_result]
+                    fn __move_result_unchecked(this: *mut ::std::ffi::c_void) -> *mut ::std::ffi::c_void;
+                }
+                __move_result_unchecked(this)
             }
             unsafe fn __drop(this: *mut ::std::ffi::c_void) {
                 extern "C" {

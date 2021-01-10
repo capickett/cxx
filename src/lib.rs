@@ -402,6 +402,8 @@ mod macros;
 mod exception;
 mod extern_type;
 mod function;
+#[path = "cxx_future.rs"]
+mod future;
 mod opaque;
 mod result;
 mod rust_slice;
@@ -421,6 +423,7 @@ mod weak_ptr;
 
 pub use crate::exception::Exception;
 pub use crate::extern_type::{kind, ExternType};
+pub use crate::future::CxxFuture;
 pub use crate::shared_ptr::SharedPtr;
 pub use crate::string::CxxString;
 pub use crate::unique_ptr::UniquePtr;
@@ -433,6 +436,13 @@ pub use cxxbridge_macro::bridge;
 ///
 /// [`ExternType`]: trait.ExternType.html
 pub use cxxbridge_macro::type_id;
+
+/// Synonym for `CxxFuture`.
+///
+/// To avoid confusion with Rust's standard library future you probably
+/// shouldn't import this type with `use`. Instead, write `cxx::Future<T>`, or
+/// import and use `CxxFuture`.
+pub type Future<T> = CxxFuture<T>;
 
 /// Synonym for `CxxString`.
 ///
@@ -453,6 +463,7 @@ pub type Vector<T> = CxxVector<T>;
 pub mod private {
     pub use crate::extern_type::{verify_extern_kind, verify_extern_type};
     pub use crate::function::FatFunction;
+    pub use crate::future::FutureResult;
     pub use crate::opaque::Opaque;
     pub use crate::result::{r#try, Result};
     pub use crate::rust_slice::RustSlice;

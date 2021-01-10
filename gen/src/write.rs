@@ -218,6 +218,7 @@ fn pick_includes_and_builtins(out: &mut OutFile, apis: &[Api]) {
             Type::UniquePtr(_) => out.include.memory = true,
             Type::SharedPtr(_) | Type::WeakPtr(_) => out.include.memory = true,
             Type::Str(_) => out.builtin.rust_str = true,
+            Type::CxxFuture(_) => out.builtin.future = true,
             Type::CxxVector(_) => out.include.vector = true,
             Type::Fn(_) => out.builtin.rust_fn = true,
             Type::SliceRef(_) => out.builtin.rust_slice = true,
@@ -1167,6 +1168,11 @@ fn write_type(out: &mut OutFile, ty: &Type) {
             write_type(out, &ptr.inner);
             write!(out, ">");
         }
+        Type::CxxFuture(ty) => {
+            write!(out, "::cxx::Future<");
+            write_type(out, &ty.inner);
+            write!(out, ">");
+        }
         Type::CxxVector(ty) => {
             write!(out, "::std::vector<");
             write_type(out, &ty.inner);
@@ -1248,6 +1254,7 @@ fn write_space_after_type(out: &mut OutFile, ty: &Type) {
         | Type::SharedPtr(_)
         | Type::WeakPtr(_)
         | Type::Str(_)
+        | Type::CxxFuture(_)
         | Type::CxxVector(_)
         | Type::RustVec(_)
         | Type::SliceRef(_)
@@ -1320,6 +1327,7 @@ fn write_generic_instantiations(out: &mut OutFile) {
             ImplKey::UniquePtr(ident) => write_unique_ptr(out, ident),
             ImplKey::SharedPtr(ident) => write_shared_ptr(out, ident),
             ImplKey::WeakPtr(ident) => write_weak_ptr(out, ident),
+            ImplKey::CxxFuture(ident) => write_cxx_future(out, ident),
             ImplKey::CxxVector(ident) => write_cxx_vector(out, ident),
         }
     }
@@ -1511,6 +1519,8 @@ fn write_rust_vec_impl(out: &mut OutFile, element: &Ident) {
     );
     writeln!(out, "}}");
 }
+
+// fn write_future()
 
 fn write_unique_ptr(out: &mut OutFile, ident: &Ident) {
     let ty = UniquePtr::Ident(ident);
@@ -1756,6 +1766,33 @@ fn write_weak_ptr(out: &mut OutFile, ident: &Ident) {
         instance, inner,
     );
     writeln!(out, "  self->~weak_ptr();");
+    writeln!(out, "}}");
+}
+
+fn write_cxx_future(out: &mut OutFile, element: &Ident) {
+    let inner = element.to_typename(out.types);
+    let instance = element.to_mangled(out.types);
+
+    writeln!(
+        out,
+        "bool cxxbridge1$cxx$Future${}$ready(const ::cxx::Future<{}> &f) noexcept {{",
+        instance, inner,
+    );
+    writeln!(out, "  return f.ready();");
+    writeln!(out, "}}");
+    writeln!(
+        out,
+        "{} *cxxbridge1$cxx$Future${}$move_result(::cxx::Future<{}> *self) noexcept {{",
+        inner, instance, inner,
+    );
+    writeln!(out, "  return self->result().release();");
+    writeln!(out, "}}");
+    writeln!(
+        out,
+        "void cxxbridge1$cxx$Future${}$drop(::cxx::Future<{}> *self) noexcept {{",
+        instance, inner
+    );
+    writeln!(out, "  self->~Future();");
     writeln!(out, "}}");
 }
 

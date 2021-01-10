@@ -89,6 +89,7 @@ Shared c_return_shared();
 ::A::AShared c_return_ns_shared();
 ::A::B::ABShared c_return_nested_ns_shared();
 rust::Box<R> c_return_box();
+cxx::Future<C> c_return_future();
 std::unique_ptr<C> c_return_unique_ptr();
 std::shared_ptr<C> c_return_shared_ptr();
 std::unique_ptr<::H::H> c_return_ns_unique_ptr();

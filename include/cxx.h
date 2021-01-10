@@ -1079,3 +1079,52 @@ struct IsRelocatable
 
 } // namespace cxxbridge1
 } // namespace rust
+
+namespace cxx {
+inline namespace cxxbridge1 {
+
+#ifndef CXXBRIDGE1_CXX_FUTURE
+template <typename T>
+struct Future {
+  Future() = delete;
+  Future(Future &&) noexcept = default;
+  ~Future() noexcept;
+
+  explicit Future(const T &);
+  explicit Future(T &&);
+
+  Future &operator=(Future &&) noexcept = default;
+
+  bool ready() const noexcept;
+
+  std::unique_ptr<T>& result() noexcept;
+
+private:
+  std::unique_ptr<T> result_;
+};
+#endif // CXXBRIDGE1_CXX_FUTURE
+
+#ifndef CXXBRIDGE1_CXX_FUTURE
+#define CXXBRIDGE1_CXX_FUTURE
+template <typename T>
+Future<T>::~Future() noexcept {}
+
+template <typename T>
+Future<T>::Future(const T & value) : result_(new T(value)) {}
+
+template <typename T>
+Future<T>::Future(T && value) : result_(new T(std::move(value))) {}
+
+template <typename T>
+bool Future<T>::ready() const noexcept {
+  return true;
+}
+
+template <typename T>
+std::unique_ptr<T>& Future<T>::result() noexcept {
+  return result_;
+}
+#endif // CXXBRIDGE1_CXX_FUTURE
+
+} // namespace cxxbridge1
+} // namespace cxx

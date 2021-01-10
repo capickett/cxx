@@ -8,6 +8,7 @@ pub enum ImplKey<'a> {
     UniquePtr(&'a Ident),
     SharedPtr(&'a Ident),
     WeakPtr(&'a Ident),
+    CxxFuture(&'a Ident),
     CxxVector(&'a Ident),
 }
 
@@ -32,6 +33,10 @@ impl Type {
         } else if let Type::WeakPtr(ty) = self {
             if let Type::Ident(ident) = &ty.inner {
                 return Some(ImplKey::WeakPtr(&ident.rust));
+            }
+        } else if let Type::CxxFuture(ty) = self {
+            if let Type::Ident(ident) = &ty.inner {
+                return Some(ImplKey::CxxFuture(&ident.rust));
             }
         } else if let Type::CxxVector(ty) = self {
             if let Type::Ident(ident) = &ty.inner {

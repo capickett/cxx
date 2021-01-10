@@ -33,6 +33,7 @@ fn do_typecheck(cx: &mut Check) {
             Type::UniquePtr(ptr) => check_type_unique_ptr(cx, ptr),
             Type::SharedPtr(ptr) => check_type_shared_ptr(cx, ptr),
             Type::WeakPtr(ptr) => check_type_weak_ptr(cx, ptr),
+            Type::CxxFuture(ptr) => check_type_cxx_future(cx, ptr),
             Type::CxxVector(ptr) => check_type_cxx_vector(cx, ptr),
             Type::Ref(ty) => check_type_ref(cx, ty),
             Type::Array(array) => check_type_array(cx, array),
@@ -177,6 +178,24 @@ fn check_type_weak_ptr(cx: &mut Check, ptr: &Ty1) {
     }
 
     cx.error(ptr, "unsupported weak_ptr target type");
+}
+
+fn check_type_cxx_future(cx: &mut Check, ptr: &Ty1) {
+    if let Type::Ident(ident) = &ptr.inner {
+        if cx.types.rust.contains(&ident.rust) {
+            cx.error(ptr, "unique_ptr of a Rust type is not supported yet");
+            return;
+        }
+
+        match Atom::from(&ident.rust) {
+            None | Some(CxxString) => return,
+            _ => {}
+        }
+    } else if let Type::CxxVector(_) = &ptr.inner {
+        return;
+    }
+
+    cx.error(ptr, "unsupported unique_ptr target type");
 }
 
 fn check_type_cxx_vector(cx: &mut Check, ptr: &Ty1) {
@@ -551,6 +570,7 @@ fn is_unsized(cx: &mut Check, ty: &Type) -> bool {
         Type::CxxVector(_) | Type::Fn(_) | Type::Void(_) => true,
         Type::RustBox(_)
         | Type::RustVec(_)
+        | Type::CxxFuture(_)
         | Type::UniquePtr(_)
         | Type::SharedPtr(_)
         | Type::WeakPtr(_)
@@ -629,6 +649,7 @@ fn describe(cx: &mut Check, ty: &Type) -> String {
         Type::WeakPtr(_) => "weak_ptr".to_owned(),
         Type::Ref(_) => "reference".to_owned(),
         Type::Str(_) => "&str".to_owned(),
+        Type::CxxFuture(_) => "C++ future".to_owned(),
         Type::CxxVector(_) => "C++ vector".to_owned(),
         Type::SliceRef(_) => "slice".to_owned(),
         Type::Fn(_) => "function pointer".to_owned(),

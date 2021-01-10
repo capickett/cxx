@@ -48,6 +48,7 @@ impl<'a> Types<'a> {
                 | Type::UniquePtr(ty)
                 | Type::SharedPtr(ty)
                 | Type::WeakPtr(ty)
+                | Type::CxxFuture(ty)
                 | Type::CxxVector(ty)
                 | Type::RustVec(ty) => visit(all, &ty.inner),
                 Type::Ref(r) => visit(all, &r.inner),
@@ -180,6 +181,7 @@ impl<'a> Types<'a> {
                 | ImplKey::UniquePtr(ident)
                 | ImplKey::SharedPtr(ident)
                 | ImplKey::WeakPtr(ident)
+                | ImplKey::CxxFuture(ident)
                 | ImplKey::CxxVector(ident) => {
                     Atom::from(ident).is_none() && !aliases.contains_key(ident)
                 }

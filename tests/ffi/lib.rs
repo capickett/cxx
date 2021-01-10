@@ -94,6 +94,7 @@ pub mod ffi {
         fn c_return_primitive() -> usize;
         fn c_return_shared() -> Shared;
         fn c_return_box() -> Box<R>;
+        fn c_return_future() -> CxxFuture<C>;
         fn c_return_unique_ptr() -> UniquePtr<C>;
         fn c_return_shared_ptr() -> SharedPtr<C>;
         fn c_return_ref(shared: &Shared) -> &usize;

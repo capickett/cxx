@@ -959,6 +959,7 @@ fn parse_impl(imp: ItemImpl) -> Result<Api> {
         | Type::UniquePtr(ty)
         | Type::SharedPtr(ty)
         | Type::WeakPtr(ty)
+        | Type::CxxFuture(ty)
         | Type::CxxVector(ty) => match &ty.inner {
             Type::Ident(ident) => ident.generics.clone(),
             _ => Lifetimes::default(),
@@ -1116,6 +1117,16 @@ fn parse_type_path(ty: &TypePath) -> Result<Type> {
                     if let GenericArgument::Type(arg) = &generic.args[0] {
                         let inner = parse_type(arg)?;
                         return Ok(Type::WeakPtr(Box::new(Ty1 {
+                            name: ident,
+                            langle: generic.lt_token,
+                            inner,
+                            rangle: generic.gt_token,
+                        })));
+                    }
+                } else if ident == "CxxFuture" && generic.args.len() == 1 {
+                    if let GenericArgument::Type(arg) = &generic.args[0] {
+                        let inner = parse_type(arg)?;
+                        return Ok(Type::CxxFuture(Box::new(Ty1 {
                             name: ident,
                             langle: generic.lt_token,
                             inner,

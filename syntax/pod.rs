@@ -27,6 +27,7 @@ impl<'a> Types<'a> {
             | Type::UniquePtr(_)
             | Type::SharedPtr(_)
             | Type::WeakPtr(_)
+            | Type::CxxFuture(_)
             | Type::CxxVector(_)
             | Type::Void(_) => false,
             Type::Ref(_) | Type::Str(_) | Type::Fn(_) | Type::SliceRef(_) => true,

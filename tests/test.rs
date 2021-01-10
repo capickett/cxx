@@ -93,6 +93,13 @@ fn test_c_return() {
     }
 }
 
+#[tokio::test]
+async fn test_c_await_future_return() {
+    let unique_ptr = ffi::c_return_future().await;
+    assert!(unique_ptr.is_ok());
+    check!(ffi::c_take_ref_c(&unique_ptr.unwrap()));
+}
+
 #[test]
 fn test_c_try_return() {
     assert_eq!((), ffi::c_try_return_void().unwrap());

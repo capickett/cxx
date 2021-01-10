@@ -18,6 +18,7 @@ pub struct Builtins<'a> {
     pub rust_error: bool,
     pub manually_drop: bool,
     pub maybe_uninit: bool,
+    pub future: bool,
     pub trycatch: bool,
     pub ptr_len: bool,
     pub repr_fat: bool,
