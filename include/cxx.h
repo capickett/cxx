@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <iosfwd>
 #include <iterator>
+#include <mutex>
 #include <new>
 #include <stdexcept>
 #include <string>
@@ -1084,11 +1085,60 @@ namespace cxx {
 inline namespace cxxbridge1 {
 
 #ifndef CXXBRIDGE1_CXX_FUTURE
+namespace detail {
+using WakerWakeFn = void (*)(void *);
+
+template <typename T>
+struct SharedCore {
+  SharedCore() = default;
+  explicit SharedCore(const T &value) : result_(new T(value)) {}
+  explicit SharedCore(T &&value) : result_(new T(std::move(value))) {}
+
+  bool ready() const noexcept {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return result_ != nullptr;
+  }
+
+  void setResult(std::unique_ptr<T> &&value) noexcept {
+    std::unique_lock<std::mutex> lock(mutex_);
+    result_ = std::move(value);
+    if (waker_ != nullptr) {
+      wake_(waker_);
+      waker_ = nullptr;
+      wake_ = nullptr;
+    }
+  }
+
+  void set_waker(void *waker_ctx, WakerWakeFn wake) noexcept {
+    std::unique_lock<std::mutex> lock(mutex_);
+    waker_ = waker_ctx;
+    wake_ = wake;
+    if (result_ != nullptr) {
+      wake_(waker_);
+      waker_ = nullptr;
+      wake_ = nullptr;
+    }
+  }
+
+  std::unique_ptr<T> result() noexcept {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return std::move(result_);
+  }
+
+private:
+  mutable std::mutex mutex_;
+  std::unique_ptr<T> result_;
+  void *waker_{nullptr};
+  WakerWakeFn wake_{nullptr};
+};
+} // namespace detail
+
+template <typename T>
+struct Promise;
+
 template <typename T>
 struct Future {
-  Future() = delete;
   Future(Future &&) noexcept = default;
-  ~Future() noexcept;
 
   explicit Future(const T &);
   explicit Future(T &&);
@@ -1097,32 +1147,73 @@ struct Future {
 
   bool ready() const noexcept;
 
-  std::unique_ptr<T>& result() noexcept;
+  void set_waker(void *waker_ctx, detail::WakerWakeFn wake) noexcept {
+    core_->set_waker(waker_ctx, wake);
+  }
+  
+  std::unique_ptr<T> result() noexcept;
 
 private:
-  std::unique_ptr<T> result_;
+  friend Promise<T>;
+  Future(const std::shared_ptr<detail::SharedCore<T>> &core) : core_(core) {}
+
+  std::shared_ptr<detail::SharedCore<T>> core_;
+};
+
+template <typename T>
+struct Promise {
+  Promise() noexcept;
+  Promise(Promise &&) noexcept = default;
+
+  Promise &operator=(Promise &&) noexcept = default;
+
+  Future<T> getFuture() const noexcept;
+
+  void setValue(const T &value) noexcept;
+  void setValue(T &&value) noexcept;
+
+private:
+  std::shared_ptr<detail::SharedCore<T>> core_;
 };
 #endif // CXXBRIDGE1_CXX_FUTURE
 
 #ifndef CXXBRIDGE1_CXX_FUTURE
 #define CXXBRIDGE1_CXX_FUTURE
 template <typename T>
-Future<T>::~Future() noexcept {}
+Future<T>::Future(const T &value) : core_(new detail::SharedCore<T>(value)) {}
 
 template <typename T>
-Future<T>::Future(const T & value) : result_(new T(value)) {}
-
-template <typename T>
-Future<T>::Future(T && value) : result_(new T(std::move(value))) {}
+Future<T>::Future(T &&value)
+    : core_(new detail::SharedCore<T>(std::move(value))) {}
 
 template <typename T>
 bool Future<T>::ready() const noexcept {
-  return true;
+  return core_->ready();
 }
 
 template <typename T>
-std::unique_ptr<T>& Future<T>::result() noexcept {
-  return result_;
+std::unique_ptr<T> Future<T>::result() noexcept {
+  return core_->result();
+}
+
+template <typename T>
+Promise<T>::Promise() noexcept : core_(new detail::SharedCore<T>()) {}
+
+template <typename T>
+Future<T> Promise<T>::getFuture() const noexcept {
+  return Future<T>(core_);
+}
+
+template <typename T>
+void Promise<T>::setValue(const T &value) noexcept {
+  std::unique_ptr<T> result(new T(value));
+  core_->setResult(std::move(result));
+}
+
+template <typename T>
+void Promise<T>::setValue(T && value) noexcept {
+  std::unique_ptr<T> result(new T(std::move(value)));
+  core_->setResult(std::move(result));
 }
 #endif // CXXBRIDGE1_CXX_FUTURE
 

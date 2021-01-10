@@ -1416,6 +1416,7 @@ fn expand_cxx_future(inner: &Ident, types: &Types, explicit_impl: Option<&Impl>)
     let resolve = types.resolve(inner);
     let prefix = format!("cxxbridge1$cxx$Future${}$", resolve.name.to_symbol());
     let link_ready = format!("{}ready", prefix);
+    let link_set_waker = format!("{}set_waker", prefix);
     let link_move_result = format!("{}move_result", prefix);
     let link_drop = format!("{}drop", prefix);
 
@@ -1436,9 +1437,16 @@ fn expand_cxx_future(inner: &Ident, types: &Types, explicit_impl: Option<&Impl>)
             fn __future_ready(this: *const ::std::ffi::c_void) -> bool {
                 extern "C" {
                     #[link_name = #link_ready]
-                    fn __future_ready(_: *const ::std::ffi::c_void) -> bool;
+                    fn __future_ready(this: *const ::std::ffi::c_void) -> bool;
                 }
                 unsafe { __future_ready(this) }
+            }
+            unsafe fn __future_set_waker(this: *mut ::std::ffi::c_void, waker: *mut ::std::task::Waker, wake: unsafe extern fn(*mut ::std::task::Waker)) {
+                extern "C" {
+                    #[link_name = #link_set_waker]
+                    fn __future_set_waker(this: *mut ::std::ffi::c_void, waker: *mut ::std::task::Waker, wake: unsafe extern fn(*mut ::std::task::Waker));
+                }
+                __future_set_waker(this, waker, wake)
             }
             unsafe fn __move_result_unchecked(this: *mut ::std::ffi::c_void) -> *mut ::std::ffi::c_void {
                 extern "C" {

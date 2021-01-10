@@ -1782,6 +1782,13 @@ fn write_cxx_future(out: &mut OutFile, element: &Ident) {
     writeln!(out, "}}");
     writeln!(
         out,
+        "void cxxbridge1$cxx$Future${}$set_waker(::cxx::Future<{}> *f, void *waker_ctx, void (*wake_fn)(void*)) noexcept {{",
+        instance, inner,
+    );
+    writeln!(out, "  f->set_waker(waker_ctx, wake_fn);");
+    writeln!(out, "}}");
+    writeln!(
+        out,
         "{} *cxxbridge1$cxx$Future${}$move_result(::cxx::Future<{}> *self) noexcept {{",
         inner, instance, inner,
     );

@@ -7,6 +7,7 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <tuple>
 
 extern "C" void cxx_test_suite_set_correct() noexcept;
@@ -73,7 +74,14 @@ rust::Box<R> c_return_box() {
 }
 
 cxx::Future<C> c_return_future() {
-  return cxx::Future<C>(C{2020});
+  cxx::Promise<C> p;
+  auto fut = p.getFuture();
+  std::thread bgTask([](cxx::Promise<C> p) {
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    p.setValue(C{2020});
+  }, std::move(p));
+  bgTask.detach();
+  return fut;
 }
 
 std::unique_ptr<C> c_return_unique_ptr() {
